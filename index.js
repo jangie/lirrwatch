@@ -310,14 +310,32 @@ var nextSchedules = module.exports.nextSchedules =
 
 //TODO: Account for service removal.
 //TODO: Account for realtime GTFS.
-//TODO: Determine how best to make 12H display.
+
+var convert24To12 = function(time){
+  var timeSplit = time.split(":");
+  var postfix = " PM";
+  timeSplit[0] = parseInt(timeSplit[0]);
+  if (timeSplit[0] < 12 || timeSplit[0] > 23){
+    postfix = " AM";
+  }
+  if (timeSplit[0] > 12){
+    timeSplit[0] = timeSplit[0] - 12;
+  }
+  if (timeSplit[0] === 0){
+    timeSplit[0] = 12;
+  }
+  return getTwoDigitValue(timeSplit[0]) + ":" +
+    getTwoDigitValue(timeSplit[1]) + ":" +
+    getTwoDigitValue(timeSplit[2]) + postfix;
+};
 
 nextSchedules(85, "Port Washington", "Great Neck", "Penn Station").then(function(result){
   for (var i = 0; i < result.length; i++){
     var goodTrip = result[i];
     console.log(stopIdReverseLookup[goodTrip.data.departStation]
       +
-      ":" + goodTrip.data.departTime +
-      "  ->  " + stopIdReverseLookup[goodTrip.data.arriveStation] + ":" + goodTrip.data.arriveTime);
+      ":" + convert24To12(goodTrip.data.departTime) +
+      "  ->  " + stopIdReverseLookup[goodTrip.data.arriveStation] + ":" +
+      convert24To12(goodTrip.data.arriveTime));
   }
 }).fail(function(error){console.dir(error);});
