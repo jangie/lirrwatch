@@ -1,0 +1,30 @@
+{
+  "name": "lirrwatch",
+  "version": "1.0.0",
+  "description": "quick thing to read MTA's bits",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jangie/lirrwatch.git"
+  },
+  "keywords": [
+    "lirr",
+    "mta",
+    "gtfs"
+  ],
+  "dependencies": {
+    "csv": "~0.4.6",
+    "unzip": "~0.1.11",
+    "request": "~2.67.0",
+    "q":"~1.4.1"
+  },
+  "author": "jangie",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jangie/lirrwatch/issues"
+  },
+  "homepage": "https://github.com/jangie/lirrwatch#readme"
+}
