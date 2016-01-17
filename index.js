@@ -313,7 +313,6 @@ var nextSchedules = module.exports.nextSchedules =
 //TODO: Determine how best to make 12H display.
 
 nextSchedules(85, "Port Washington", "Great Neck", "Penn Station").then(function(result){
-  console.log(result)
   for (var i = 0; i < result.length; i++){
     var goodTrip = result[i];
     console.log(stopIdReverseLookup[goodTrip.data.departStation]
@@ -321,5 +320,4 @@ nextSchedules(85, "Port Washington", "Great Neck", "Penn Station").then(function
       ":" + goodTrip.data.departTime +
       "  ->  " + stopIdReverseLookup[goodTrip.data.arriveStation] + ":" + goodTrip.data.arriveTime);
   }
-  return nextSchedules(5, "Port Washington", "Great Neck", "Penn Station");
 }).fail(function(error){console.dir(error);});
