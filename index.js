@@ -12,7 +12,7 @@ var sortedGoodTrips = {};
 var calendar = {};
 var stops = {};
 var stopIdReverseLookup = {};
-
+var dateTrips = {};
 var fetchGTFSFromMTA = function(){
   //cleanup
   routes = {};
@@ -62,7 +62,11 @@ var populateCalendar = function(){
 
   return gtfsPromise.then(function(){
     return populateObjectFromFile('./gtfsdata/calendar_dates.txt', function(record){
-      calendar[record[1]] = record[0];
+      if (!calendar[record[1]]){
+        calendar[record[1]] = {};
+      }
+      calendar[record[1]][record[0]] = true;
+
     });
   });
 };
@@ -168,16 +172,14 @@ var nextSchedules = module.exports.nextSchedules =
     var nextSchedulesDeferment = Q.defer();
     var calendarPopulated = Q("Done");
     var now = new Date();
-    var tomorrow = new Date(now.getTime + 24*60*60*1000);
+    var tomorrow = new Date(now.getTime() + 24*60*60*1000);
     var formattedDate = getYYYYMMDD(now);
     var tomorrowFormattedDate = getYYYYMMDD(tomorrow);
-    var route, serviceId, tomorrowServiceId, firstStationId, secondStationId;
+    var route, firstStationId, secondStationId;
     if (!calendar[formattedDate] || !calendar[tomorrowFormattedDate]){
       calendarPopulated = populateCalendar();
     }
     calendarPopulated.then(function(){
-      serviceId = calendar[formattedDate];
-      tomorrowServiceId = calendar[tomorrowFormattedDate];
       var routesPopulated = "Done";
       if (Object.keys(routes).length === 0){
         routesPopulated = populateRoutes();
@@ -188,7 +190,19 @@ var nextSchedules = module.exports.nextSchedules =
         throw Error("Badness");
       }
       route = routes[routeName.toUpperCase()];
-      if (!trips[serviceId] || !trips[tomorrowServiceId]){
+      var areAllServiceIdsPresent = true;
+      var checkServiceIdsPresentForDate = function(date){
+        for (var serviceId in calendar[date]){
+          if (!trips[serviceId]){
+            areAllServiceIdsPresent = false;
+            break;
+          }
+
+        }
+        }
+      checkServiceIdsPresentForDate(formattedDate);
+      checkServiceIdsPresentForDate(tomorrowFormattedDate);
+      if (!areAllServiceIdsPresent){
         return populateTrips(route.id);
       }
       return "Done";
@@ -201,7 +215,18 @@ var nextSchedules = module.exports.nextSchedules =
       }).then(function(){
         firstStationId = stops[firstStationName.toUpperCase()].id;
         secondStationId = stops[secondStationName.toUpperCase()].id;
-        if (!sortedGoodTrips[serviceId] || !sortedGoodTrips[tomorrowServiceId]){
+        var areAllGoodTripsPopulated = true;
+        var checkServiceIdsPresentForDate = function(date){
+          for (var serviceId in calendar[date]){
+            if (!sortedGoodTrips[serviceId]){
+              areAllGoodTripsPopulated = false;
+              break;
+            }
+          }
+        }
+        checkServiceIdsPresentForDate(formattedDate);
+        checkServiceIdsPresentForDate(tomorrowFormattedDate);
+        if (!areAllGoodTripsPopulated){
           goodTrips = {};
           sortedGoodTrips = [];
           return populateStopTimes(firstStationId, secondStationId);
@@ -211,40 +236,71 @@ var nextSchedules = module.exports.nextSchedules =
         var currentTime = getTwoDigitValue(now.getHours()) + ":" +
           getTwoDigitValue(now.getMinutes()) + ":" +
           getTwoDigitValue(now.getSeconds());
-        if (!sortedGoodTrips[serviceId]){
-          for (var serviceIdKey in goodTrips){
-            sortedGoodTrips[serviceIdKey] = [];
-            for (var tripId in goodTrips[serviceIdKey]){
-              sortedGoodTrips[serviceIdKey].push({tripId: tripId, data: goodTrips[serviceIdKey][tripId]});
-            }
-            //this is just to work around bad sorts in gtfs.
-            sortedGoodTrips[serviceIdKey].sort(
-              function(a, b){
-                if (a.data.departTime > b.data.departTime){
-                  return 1;
-                }
-                if (a.data.departTime < b.data.departTime){
-                  return -1;
-                }
-                return 0;
-              });
+        var tripSort =             function(a, b){
+          if (a.data.departTime > b.data.departTime){
+            return 1;
           }
+          if (a.data.departTime < b.data.departTime){
+            return -1;
+          }
+          if (a.data.departStation > b.data.departStation){
+            return 1;
+          }
+          if (a.data.departStation < b.data.departStation){
+            return -1;
+          }
+          return 0;
         }
+        for (var serviceIdKey in goodTrips){
+          sortedGoodTrips[serviceIdKey] = [];
+          for (var tripId in goodTrips[serviceIdKey]){
+            sortedGoodTrips[serviceIdKey].push({tripId: tripId, data: goodTrips[serviceIdKey][tripId]});
+          }
+          //this is just to work around bad sorts in gtfs.
+          sortedGoodTrips[serviceIdKey].sort(tripSort);
+        }
+        var populateDateTripsIfNotPopulated = function(date){
+          if (dateTrips[date]){
+            return;
+          }
+          dateTrips[date] = [];
+          var departInfoSet = {};
+          for (var serviceId in calendar[date]){
+            if (!sortedGoodTrips[serviceId]){
+              //sometimes schedules are missing?
+              continue;
+            }
+            for (var i = 0; i < sortedGoodTrips[serviceId].length; i++){
+              var currentTrip = sortedGoodTrips[serviceId][i];
+              var setKey = currentTrip.data.departTime + currentTrip.data.departStation + currentTrip.data.arriveTime + currentTrip.data.arriveStation;
+              //watch out for duplicates
+              if (departInfoSet[setKey]){
+                break;
+              }
+              departInfoSet[setKey] = true;
+              dateTrips[date].push(currentTrip);
+            }
+          }
+          dateTrips[date].sort(tripSort);
+        }
+        populateDateTripsIfNotPopulated(formattedDate);
+        populateDateTripsIfNotPopulated(tomorrowFormattedDate);
+
         var foundBits = [];
-        var addToFoundBits = function(serviceIdToCheck){
-          for (var i = 0; i < sortedGoodTrips[serviceIdToCheck].length; i++){
-            var testedTrip = sortedGoodTrips[serviceIdToCheck][i];
-            if (testedTrip.data.departTime > currentTime || testedTrip.data.arriveTime > currentTime){
+        var addToFoundBits = function(dateToCheck, isToday){
+          for (var i = 0; i < dateTrips[dateToCheck].length; i++){
+            var testedTrip = dateTrips[dateToCheck][i];
+            if (!isToday || (testedTrip.data.departTime > currentTime || testedTrip.data.arriveTime > currentTime)){
               foundBits.push(testedTrip);
               if (foundBits.length === numberOfSchedules){
                 break;
               }
             }
           }
-        }
-        addToFoundBits(serviceId);
-        if (!foundBits.length === numberOfSchedules){
-          addToFoundBits(tomorrowServiceId);
+        };
+        addToFoundBits(formattedDate, true);
+        if (foundBits.length !== numberOfSchedules){
+          addToFoundBits(tomorrowFormattedDate);
         }
         nextSchedulesDeferment.resolve(foundBits);
         });
@@ -252,10 +308,12 @@ var nextSchedules = module.exports.nextSchedules =
   }
 ;
 
+//TODO: Account for service removal.
 //TODO: Account for realtime GTFS.
 //TODO: Determine how best to make 12H display.
 
-nextSchedules(5, "Port Washington", "Great Neck", "Penn Station").then(function(result){
+nextSchedules(85, "Port Washington", "Great Neck", "Penn Station").then(function(result){
+  console.log(result)
   for (var i = 0; i < result.length; i++){
     var goodTrip = result[i];
     console.log(stopIdReverseLookup[goodTrip.data.departStation]
@@ -263,5 +321,5 @@ nextSchedules(5, "Port Washington", "Great Neck", "Penn Station").then(function(
       ":" + goodTrip.data.departTime +
       "  ->  " + stopIdReverseLookup[goodTrip.data.arriveStation] + ":" + goodTrip.data.arriveTime);
   }
-
-});
+  return nextSchedules(5, "Port Washington", "Great Neck", "Penn Station");
+}).fail(function(error){console.dir(error);});
