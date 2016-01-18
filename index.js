@@ -165,7 +165,49 @@ var getYYYYMMDD = function(desiredDateObject){
   return "" + desiredDateObject.getFullYear() +
     getTwoDigitValue(desiredDateObject.getMonth() + 1) +
     getTwoDigitValue(desiredDateObject.getDate())
-}
+};
+
+var populateRoutesIfNeeded = function(){
+  var routesPopulated = "Done";
+  if (Object.keys(routes).length === 0){
+    routesPopulated = populateRoutes();
+  }
+  return routesPopulated;
+};
+
+var populateTripsIfNeeded = function(routeName, formattedDate, tomorrowFormattedDate){
+  return function(){
+    if (!routes[routeName.toUpperCase()]){
+      throw Error("Badness");
+    }
+    route = routes[routeName.toUpperCase()];
+    var areAllServiceIdsPresent = true;
+    var checkServiceIdsPresentForDate = function(date){
+      for (var serviceId in calendar[date]){
+        if (!trips[serviceId]){
+          areAllServiceIdsPresent = false;
+          break;
+        }
+
+      }
+    }
+    checkServiceIdsPresentForDate(formattedDate);
+    checkServiceIdsPresentForDate(tomorrowFormattedDate);
+    if (!areAllServiceIdsPresent){
+      return populateTrips(route.id);
+    }
+    return "Done";
+  };
+};
+
+var populateStopsIfNeeded = function(firstStationName, secondStationName){
+  return function(){
+    if (!stops[firstStationName.toUpperCase()] || !stops[secondStationName.toUpperCase()]){
+      return populateStops();
+    }
+    return "Done";
+  };
+};
 
 var nextSchedules = module.exports.nextSchedules =
   function (numberOfSchedules, routeName, firstStationName, secondStationName){
@@ -179,40 +221,13 @@ var nextSchedules = module.exports.nextSchedules =
     if (!calendar[formattedDate] || !calendar[tomorrowFormattedDate]){
       calendarPopulated = populateCalendar();
     }
-    calendarPopulated.then(function(){
-      var routesPopulated = "Done";
-      if (Object.keys(routes).length === 0){
-        routesPopulated = populateRoutes();
-      }
-      return routesPopulated;
-    }).then(function(){
-      if (!routes[routeName.toUpperCase()]){
-        throw Error("Badness");
-      }
-      route = routes[routeName.toUpperCase()];
-      var areAllServiceIdsPresent = true;
-      var checkServiceIdsPresentForDate = function(date){
-        for (var serviceId in calendar[date]){
-          if (!trips[serviceId]){
-            areAllServiceIdsPresent = false;
-            break;
-          }
-
-        }
-        }
-      checkServiceIdsPresentForDate(formattedDate);
-      checkServiceIdsPresentForDate(tomorrowFormattedDate);
-      if (!areAllServiceIdsPresent){
-        return populateTrips(route.id);
-      }
-      return "Done";
-    }).then(function(){
-      if (!stops[firstStationName.toUpperCase()] || !stops[secondStationName.toUpperCase()]){
-        return populateStops();
-      }
-        return "Done";
-
-      }).then(function(){
+    calendarPopulated.then(
+        populateRoutesIfNeeded
+      ).then(
+        populateTripsIfNeeded(routeName, formattedDate, tomorrowFormattedDate)
+      ).then(
+        populateStopsIfNeeded(firstStationName, secondStationName)
+      ).then(function(){
         firstStationId = stops[firstStationName.toUpperCase()].id;
         secondStationId = stops[secondStationName.toUpperCase()].id;
         var areAllGoodTripsPopulated = true;
