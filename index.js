@@ -13,6 +13,10 @@ var calendar = {};
 var stops = {};
 var stopIdReverseLookup = {};
 var dateTrips = {};
+
+var realtimeMTAInfo;
+var lastFetchedFromRealtimeMTA;
+
 var fetchGTFSFromMTA = function(){
   //cleanup
   routes = {};
@@ -209,6 +213,42 @@ var populateStopsIfNeeded = function(firstStationName, secondStationName){
   };
 };
 
+var fetchRealtimeInfoFromMTA = function(){
+  var deferment = Q.defer();
+  if (lastFetchedFromRealtimeMTA && (new Date()).getTime() - lastFetchedFromRealtimeMTA < 60000){
+    deferment.resolve(realtimeMTAInfo);
+  }else{
+    var url = "https://mnorth.prod.acquia-sites.com/wse/LIRR/gtfsrt/realtime/"+process.env.MTA_API_KEY+"/json";
+    request(url, function(err, response, body){
+      var feedInfo = JSON.parse(body);
+      realtimeMTAInfo = {};
+      if (feedInfo && feedInfo.FeedHeader && feedInfo.FeedHeader.Entities){
+        var entities = feedInfo.FeedHeader.Entities;
+        for (var i = 0; i < entities.length; i++){
+          var entity = entities[i];
+          if (entity && entity.FeedEntity &&
+            entity.FeedEntity.TripUpdate &&
+            entity.FeedEntity.TripUpdate.TripDescriptor &&
+            entity.FeedEntity.TripUpdate.TripDescriptor.StopTimeUpdates){
+            var stopTimeUpdates = entity.FeedEntity.TripUpdate.TripDescriptor.StopTimeUpdates;
+            realtimeMTAInfo[entity.FeedEntity.id] = 0;
+            for (var j = 0; j < stopTimeUpdates.length;j++){
+              var stopTimeUpdate = stopTimeUpdates[j];
+              realtimeMTAInfo[entity.FeedEntity.id] =
+                stopTimeUpdate.StopTimeUpdate.Arrival.delay;
+            }
+          }
+        }
+      }
+      lastFetchedFromRealtimeMTA = (new Date()).getTime();
+      deferment.resolve("done");
+    });
+
+  }
+
+  return deferment.promise;
+};
+
 var nextSchedules = module.exports.nextSchedules =
   function (numberOfSchedules, routeName, firstStationName, secondStationName){
     var nextSchedulesDeferment = Q.defer();
@@ -226,6 +266,8 @@ var nextSchedules = module.exports.nextSchedules =
       ).then(
         populateTripsIfNeeded(routeName, formattedDate, tomorrowFormattedDate)
       ).then(
+        fetchRealtimeInfoFromMTA
+      ).then(
         populateStopsIfNeeded(firstStationName, secondStationName)
       ).then(function(){
         firstStationId = stops[firstStationName.toUpperCase()].id;
@@ -238,7 +280,7 @@ var nextSchedules = module.exports.nextSchedules =
               break;
             }
           }
-        }
+        };
         checkServiceIdsPresentForDate(formattedDate);
         checkServiceIdsPresentForDate(tomorrowFormattedDate);
         if (!areAllGoodTripsPopulated){
@@ -302,10 +344,34 @@ var nextSchedules = module.exports.nextSchedules =
         populateDateTripsIfNotPopulated(tomorrowFormattedDate);
 
         var foundBits = [];
+        var getCorrectedTime = function(time, delay){
+          var splitTime = time.split(":");
+          var minutesDelayed = Math.ceil(delay/60);
+          var currentMinutes = parseInt(splitTime[1]);
+          var currentHours = parseInt(splitTime[0]);
+          currentMinutes += minutesDelayed;
+          while (currentMinutes > 60){
+            currentMinutes = currentMinutes - 60;
+            currentHours++;
+          }
+          return getTwoDigitValue(currentHours) + ":" +
+            getTwoDigitValue(currentMinutes) + ":" +
+            getTwoDigitValue(splitTime[2]);
+        };
         var addToFoundBits = function(dateToCheck, isToday){
           for (var i = 0; i < dateTrips[dateToCheck].length; i++){
             var testedTrip = dateTrips[dateToCheck][i];
-            if (!isToday || (testedTrip.data.departTime > currentTime || testedTrip.data.arriveTime > currentTime)){
+            testedTrip.delay = 0;
+            if (realtimeMTAInfo[testedTrip.tripId]){
+              testedTrip.delay = realtimeMTAInfo[testedTrip.tripId];
+            }
+            var correctedDepartureTime =
+              getCorrectedTime(testedTrip.data.departTime, testedTrip.delay);
+            var correctedArrivalTime =
+              getCorrectedTime(testedTrip.data.arriveTime, testedTrip.delay);
+            if (!isToday ||
+              (correctedDepartureTime > currentTime ||
+                correctedArrivalTime > currentTime)){
               foundBits.push(testedTrip);
               if (foundBits.length === numberOfSchedules){
                 break;
@@ -324,7 +390,7 @@ var nextSchedules = module.exports.nextSchedules =
 ;
 
 //TODO: Account for service removal.
-//TODO: Account for realtime GTFS.
+//TODO: Check realtime data to see if stopid seems to matter
 
 var convert24To12 = function(time){
   var timeSplit = time.split(":");
@@ -344,13 +410,13 @@ var convert24To12 = function(time){
     getTwoDigitValue(timeSplit[2]) + postfix;
 };
 
-nextSchedules(85, "Port Washington", "Great Neck", "Penn Station").then(function(result){
+nextSchedules(5, "Port Washington", "Great Neck", "Penn Station").then(function(result){
   for (var i = 0; i < result.length; i++){
     var goodTrip = result[i];
     console.log(stopIdReverseLookup[goodTrip.data.departStation]
       +
       ":" + convert24To12(goodTrip.data.departTime) +
       "  ->  " + stopIdReverseLookup[goodTrip.data.arriveStation] + ":" +
-      convert24To12(goodTrip.data.arriveTime));
+      convert24To12(goodTrip.data.arriveTime) + ". Delayed: " + Math.ceil(goodTrip.delay/60) + " minute(s).");
   }
 }).fail(function(error){console.dir(error);});
