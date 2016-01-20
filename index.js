@@ -2,7 +2,7 @@ var Q = require("q")
   , fs = require("fs")
   , request = require('request')
   , unzip = require('unzip')
-  , parse = require('csv-parse')
+  , parse = require('csv').parse
 
   ;
 var routes = {};
@@ -220,7 +220,7 @@ var fetchRealtimeInfoFromMTA = function(){
   }else{
     var url = "https://mnorth.prod.acquia-sites.com/wse/LIRR/gtfsrt/realtime/"+process.env.MTA_API_KEY+"/json";
     request(url, function(err, response, body){
-      var feedInfo = JSON.parse(body);
+	  var feedInfo = JSON.parse(body);
       realtimeMTAInfo = {};
       if (feedInfo && feedInfo.FeedHeader && feedInfo.FeedHeader.Entities){
         var entities = feedInfo.FeedHeader.Entities;
