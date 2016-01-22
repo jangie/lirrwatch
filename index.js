@@ -14,7 +14,7 @@ var stops = {};
 var stopIdReverseLookup = {};
 var dateTrips = {};
 
-var realtimeMTAInfo;
+var realtimeMTAInfo = {};
 var lastFetchedFromRealtimeMTA;
 
 var fetchGTFSFromMTA = function(){
@@ -138,21 +138,18 @@ var populateStopTimes = function(firstStationId, secondStationId){
           goodTrips[stopServiceId][record[0]] = {};
         }
       }
-      if (goodTrips[stopServiceId][record[0]]){
-        goodTrips[stopServiceId][record[0]] = tripsChecker[stopServiceId][record[0]];
-        if (isFirstValueEarlier(
-          goodTrips[stopServiceId][record[0]][firstStationId],
-          goodTrips[stopServiceId][record[0]][secondStationId])){
+      if (goodTrips[stopServiceId][record[0]] && isFirstValueEarlier(
+          tripsChecker[stopServiceId][record[0]][firstStationId],
+          tripsChecker[stopServiceId][record[0]][secondStationId]))
+          {
+          goodTrips[stopServiceId][record[0]] = tripsChecker[stopServiceId][record[0]];
           goodTrips[stopServiceId][record[0]].departStation = firstStationId;
           goodTrips[stopServiceId][record[0]].departTime = goodTrips[stopServiceId][record[0]][firstStationId];
           goodTrips[stopServiceId][record[0]].arriveStation = secondStationId;
           goodTrips[stopServiceId][record[0]].arriveTime = goodTrips[stopServiceId][record[0]][secondStationId];
-        }else{
-          goodTrips[stopServiceId][record[0]].departStation = secondStationId;
-          goodTrips[stopServiceId][record[0]].departTime = goodTrips[stopServiceId][record[0]][secondStationId];
-          goodTrips[stopServiceId][record[0]].arriveStation = firstStationId;
-          goodTrips[stopServiceId][record[0]].arriveTime = goodTrips[stopServiceId][record[0]][firstStationId];
-        }
+
+      }else{
+        delete goodTrips[stopServiceId][record[0]];
       }
     }
   });
