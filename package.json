@@ -19,12 +19,17 @@
     "csv": "~0.4.6",
     "unzip": "~0.1.11",
     "request": "~2.67.0",
-    "q":"~1.4.1"
+    "q": "~1.4.1"
   },
   "author": "jangie",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/jangie/lirrwatch/issues"
   },
-  "homepage": "https://github.com/jangie/lirrwatch#readme"
+  "homepage": "https://github.com/jangie/lirrwatch#readme",
+  "devDependencies": {
+    "gulp": "~3.9.0",
+    "gulp-jshint": "~2.0.0",
+    "jshint": "~2.9.1"
+  }
 }

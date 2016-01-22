@@ -1,10 +1,8 @@
-var Q = require("q")
-  , fs = require("fs")
-  , request = require('request')
-  , unzip = require('unzip')
-  , parse = require('csv').parse
-
-  ;
+var Q = require("q"),
+  fs = require("fs"),
+  request = require('request'),
+  unzip = require('unzip'),
+  parse = require('csv').parse;
 var routes = {};
 var trips = {};
 var goodTrips = {};
@@ -44,8 +42,8 @@ var populateObjectFromFile = function(filepath, recordFunction){
   parser = parse();
   var recordCount = 0;
   parser.on('readable', function(){
-    while(record = parser.read()){
-      if (recordCount != 0){
+    while((record = parser.read()) !== null){
+      if (recordCount !== 0){
         recordFunction(record);
       }
       recordCount++;
@@ -165,7 +163,7 @@ var getTwoDigitValue = function(input){
 var getYYYYMMDD = function(desiredDateObject){
   return "" + desiredDateObject.getFullYear() +
     getTwoDigitValue(desiredDateObject.getMonth() + 1) +
-    getTwoDigitValue(desiredDateObject.getDate())
+    getTwoDigitValue(desiredDateObject.getDate());
 };
 
 var populateRoutesIfNeeded = function(){
@@ -191,7 +189,7 @@ var populateTripsIfNeeded = function(routeName, formattedDate, tomorrowFormatted
         }
 
       }
-    }
+    };
     checkServiceIdsPresentForDate(formattedDate);
     checkServiceIdsPresentForDate(tomorrowFormattedDate);
     if (!areAllServiceIdsPresent){
@@ -304,7 +302,7 @@ var nextSchedules = module.exports.nextSchedules =
             return -1;
           }
           return 0;
-        }
+        };
         for (var serviceIdKey in goodTrips){
           sortedGoodTrips[serviceIdKey] = [];
           for (var tripId in goodTrips[serviceIdKey]){
@@ -336,7 +334,7 @@ var nextSchedules = module.exports.nextSchedules =
             }
           }
           dateTrips[date].sort(tripSort);
-        }
+        };
         populateDateTripsIfNotPopulated(formattedDate);
         populateDateTripsIfNotPopulated(tomorrowFormattedDate);
 
@@ -410,8 +408,7 @@ var convert24To12 = function(time){
 nextSchedules(5, "Port Washington", "Great Neck", "Penn Station").then(function(result){
   for (var i = 0; i < result.length; i++){
     var goodTrip = result[i];
-    console.log(stopIdReverseLookup[goodTrip.data.departStation]
-      +
+    console.log(stopIdReverseLookup[goodTrip.data.departStation] +
       ":" + convert24To12(goodTrip.data.departTime) +
       "  ->  " + stopIdReverseLookup[goodTrip.data.arriveStation] + ":" +
       convert24To12(goodTrip.data.arriveTime) + ". Delayed: " + Math.ceil(goodTrip.delay/60) + " minute(s).");
