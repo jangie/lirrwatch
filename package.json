@@ -1,7 +1,7 @@
 {
-  "name": "@jangie/lirrwatch",
+  "name": "@jangiegb/lirrwatch",
   "version": "0.0.1",
-  "description": "quick thing to read MTA's bits",
+  "description": "quick thing to read lirr bits",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
