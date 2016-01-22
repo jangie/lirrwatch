@@ -404,13 +404,3 @@ var convert24To12 = function(time){
     getTwoDigitValue(timeSplit[1]) + ":" +
     getTwoDigitValue(timeSplit[2]) + postfix;
 };
-
-nextSchedules(5, "Port Washington", "Great Neck", "Penn Station").then(function(result){
-  for (var i = 0; i < result.length; i++){
-    var goodTrip = result[i];
-    console.log(stopIdReverseLookup[goodTrip.data.departStation] +
-      ":" + convert24To12(goodTrip.data.departTime) +
-      "  ->  " + stopIdReverseLookup[goodTrip.data.arriveStation] + ":" +
-      convert24To12(goodTrip.data.arriveTime) + ". Delayed: " + Math.ceil(goodTrip.delay/60) + " minute(s).");
-  }
-}).fail(function(error){console.dir(error);});
