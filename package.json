@@ -1,6 +1,6 @@
 {
-  "name": "lirrwatch",
-  "version": "1.0.0",
+  "name": "@jangie/lirrwatch",
+  "version": "0.0.1",
   "description": "quick thing to read MTA's bits",
   "main": "index.js",
   "scripts": {
