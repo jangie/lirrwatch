@@ -1,6 +1,6 @@
 {
   "name": "@jangiegb/lirrwatch",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "quick thing to read lirr bits",
   "main": "index.js",
   "scripts": {
