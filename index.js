@@ -362,7 +362,6 @@ var nextSchedules = module.exports.nextSchedules =
           for (var i = 0; i < dateTrips[dateToCheck][firstStationName + '-' + secondStationName].length; i++){
             var testedTrip = dateTrips[dateToCheck][firstStationName + '-' + secondStationName][i];
             testedTrip.delay = 0;
-            console.log(testedTrip);
             if (realtimeMTAInfo[testedTrip.tripId]){
               testedTrip.delay = realtimeMTAInfo[testedTrip.tripId];
             }
