@@ -267,6 +267,7 @@ var nextSchedules = module.exports.nextSchedules =
       ).then(function(){
         firstStationId = stops[firstStationName.toUpperCase()].id;
         secondStationId = stops[secondStationName.toUpperCase()].id;
+
         var areAllGoodTripsPopulated = true;
         var checkServiceIdsPresentForDate = function(date){
           for (var serviceId in calendar[date]){
@@ -288,7 +289,7 @@ var nextSchedules = module.exports.nextSchedules =
         var currentTime = getTwoDigitValue(now.getHours()) + ":" +
           getTwoDigitValue(now.getMinutes()) + ":" +
           getTwoDigitValue(now.getSeconds());
-        var tripSort =             function(a, b){
+        var tripSort = function(a, b){
           if (a.data.departTime > b.data.departTime){
             return 1;
           }
@@ -311,11 +312,15 @@ var nextSchedules = module.exports.nextSchedules =
           //this is just to work around bad sorts in gtfs.
           sortedGoodTrips[serviceIdKey].sort(tripSort);
         }
-        var populateDateTripsIfNotPopulated = function(date){
-          if (dateTrips[date]){
+        var populateDateTripsIfNotPopulated = function(date, firstStationName, secondStationName){
+          if (!dateTrips[date]){
+            dateTrips[date] = {};
+          }
+          if (!dateTrips[date][firstStationName + '-' + secondStationName]){
+            dateTrips[date][firstStationName + '-' + secondStationName] = [];
+          }else{
             return;
           }
-          dateTrips[date] = [];
           var departInfoSet = {};
           for (var serviceId in calendar[date]){
             if (!sortedGoodTrips[serviceId]){
@@ -330,13 +335,13 @@ var nextSchedules = module.exports.nextSchedules =
                 break;
               }
               departInfoSet[setKey] = true;
-              dateTrips[date].push(currentTrip);
+              dateTrips[date][firstStationName + '-' + secondStationName].push(currentTrip);
             }
           }
-          dateTrips[date].sort(tripSort);
+          dateTrips[date][firstStationName + '-' + secondStationName].sort(tripSort);
         };
-        populateDateTripsIfNotPopulated(formattedDate);
-        populateDateTripsIfNotPopulated(tomorrowFormattedDate);
+        populateDateTripsIfNotPopulated(formattedDate, firstStationName, secondStationName);
+        populateDateTripsIfNotPopulated(tomorrowFormattedDate, firstStationName, secondStationName);
 
         var foundBits = [];
         var getCorrectedTime = function(time, delay){
@@ -354,9 +359,10 @@ var nextSchedules = module.exports.nextSchedules =
             getTwoDigitValue(splitTime[2]);
         };
         var addToFoundBits = function(dateToCheck, isToday){
-          for (var i = 0; i < dateTrips[dateToCheck].length; i++){
-            var testedTrip = dateTrips[dateToCheck][i];
+          for (var i = 0; i < dateTrips[dateToCheck][firstStationName + '-' + secondStationName].length; i++){
+            var testedTrip = dateTrips[dateToCheck][firstStationName + '-' + secondStationName][i];
             testedTrip.delay = 0;
+            console.log(testedTrip);
             if (realtimeMTAInfo[testedTrip.tripId]){
               testedTrip.delay = realtimeMTAInfo[testedTrip.tripId];
             }
